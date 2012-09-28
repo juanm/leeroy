@@ -5,11 +5,20 @@ from flask import json, url_for
 import logging
 import requests
 
-github_base = "https://api.github.com"
-github_status_url = github_base + "/repos/{repo_name}/statuses/{sha}"
-github_hooks_url = github_base + "/repos/{repo_name}/hooks"
-github_commits_url = \
-    github_base + "/repos/{repo_name}/pulls/{number}/commits"
+#This does NOT belong here
+certificate = "/Users/juan/src/certificates/ca.crt" 
+
+def github_base(app):
+    return app.config["GITHUB_BASE"]
+
+def github_status_url(app):
+    return github_base(app) + "/repos/{repo_name}/statuses/{sha}" 
+
+def github_hooks_url(app):
+    return github_base(app) + "/repos/{repo_name}/hooks"
+
+def github_commits_url(app):
+    return github_base(app) + "/repos/{repo_name}/pulls/{number}/commits"
 
 
 def get_repo_name(pull_request, key):
@@ -39,10 +48,11 @@ def get_commits(app, repo_config, pull_request):
         number = pull_request["number"]
 
         base_repo_name = get_repo_name(pull_request, "base")
-        url = github_commits_url.format(repo_name=base_repo_name,
+        url = github_commits_url(app).format(repo_name=base_repo_name,
                                         number=number)
 
-        response = requests.get(url, auth=get_github_auth(app, repo_config))
+        response = requests.get(url, auth=get_github_auth(app, repo_config),
+                                verify=certificate)
         return head_repo_name, [c["sha"] for c in response.json]
     else:
         return head_repo_name, [pull_request["head"]["sha"]]
@@ -50,7 +60,7 @@ def get_commits(app, repo_config, pull_request):
 
 def update_status(app, repo_config, repo_name, sha, state, desc,
                   target_url=None):
-    url = github_status_url.format(repo_name=repo_name,
+    url = github_status_url(app).format(repo_name=repo_name,
                                    sha=sha)
     params = dict(state=state,
                   description=desc)
@@ -65,7 +75,8 @@ def update_status(app, repo_config, repo_name, sha, state, desc,
     requests.post(url,
                   auth=get_github_auth(app, repo_config),
                   data=json.dumps(params),
-                  headers=headers)
+                  headers=headers, 
+                  verify=certificate)
 
 
 def register_github_hooks(app):
@@ -74,8 +85,9 @@ def register_github_hooks(app):
 
     for repo_config in app.config["REPOSITORIES"]:
         repo_name = repo_config["github_repo"]
-        url = github_hooks_url.format(repo_name=repo_name)
-        response = requests.get(url, auth=get_github_auth(app, repo_config))
+        url = github_hooks_url(app).format(repo_name=repo_name)
+        response = requests.get(url, auth=get_github_auth(app, repo_config),
+                                verify=certificate)
 
         if not response.ok:
             logging.warn("Unable to install GitHub hook for repo %s: %s %s",
@@ -101,7 +113,8 @@ def register_github_hooks(app):
             response = requests.post(url,
                                      auth=get_github_auth(app, repo_config),
                                      data=json.dumps(params),
-                                     headers=headers)
+                                     headers=headers, 
+                                     verify=certificate)
 
             if response.ok:
                 logging.info("Registered github hook for %s", repo_name)

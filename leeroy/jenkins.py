@@ -29,4 +29,5 @@ def schedule_build(app, repo_config, head_repo_name, sha, html_url):
                           git_sha1=sha,
                           github_url=html_url)
 
-    requests.get(url, auth=get_jenkins_auth(app, repo_config))
+    #XXX IS this okay?
+    requests.get(url, auth=get_jenkins_auth(app, repo_config), verify=False)
